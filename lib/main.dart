@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:fluttertoast/fluttertoast.dart';
-// import 'package:flutter_svg/flutter_svg.dart';
+import 'models/notes.dart';
 
 const double fontSize = 23.5;
 Color mainColor = const Color(0xff193838);
@@ -134,17 +134,48 @@ class MainPageState extends State<MainPage> {
   String unchangedTitle = ''; // Controladora de alteracoes no título
   String unchangedText = ''; // Controladora de alteracoes no texto
 
+  // database contents
+  DatabaseHelper dbHelper = DatabaseHelper();
+
   // armazenamento de nome dos arquivos
   List<String> _files = []; // Lista que armazena o nome dos arquivos
   List<String> _filesTexts = [];
 
+  // armazenamento das notas
+  List<Note> _notes = [];
+
   String lastEditedNote = '';
   int totalOfNotes = 0;
+
+  Map<String, dynamic> note = {
+    'title': 'Untitled 1',
+    'content': 'Teste',
+    'modification_date': DateTime.now().toString()
+  };
+  Map<String, dynamic> newNote = {'id': 1, 'title': 'Teste', 'content': 'Brabo dms'};
 
   @override
   void initState() {
     super.initState();
     _loadFiles();
+  }
+
+  Map<String, dynamic> toMap(Note note) {
+    return {
+      'id': note.id,
+      'title': note.title,
+      'content': note.content,
+      'modification_date': note.modificationDate,
+    };
+  }
+
+  Note toNote(Map<String, dynamic> note) {
+    return Note(
+      id: note['id'],
+      title: note['title'],
+      content: note['content'],
+      modificationDate: note['modification_date'],
+    );
   }
 
   void switchVisiblePage(int page) {
@@ -162,6 +193,17 @@ class MainPageState extends State<MainPage> {
         _loadFiles();
       }
     });
+  }
+
+  Future<void> _loadNotes() async {
+    _notes.clear();
+
+    List<Map<String, dynamic>> notes = await dbHelper.getNote();
+    for (Map<String, dynamic> n in notes) {
+      _notes.add(toNote(n));
+    }
+
+    // print(_notes);
   }
 
   Future<void> _loadFiles() async {
@@ -626,8 +668,9 @@ class MainPageState extends State<MainPage> {
                     backgroundColor: WidgetStatePropertyAll(Colors.transparent),
                     elevation: WidgetStatePropertyAll(0.0)),
                 onPressed: () async {
-                  switchVisiblePage(1);
-                  getFileContent();
+                  // switchVisiblePage(1);
+                  // getFileContent();
+                  dbHelper.addNote(note);
                 },
                 child: Center(
                     child: Column(
@@ -667,7 +710,6 @@ class MainPageState extends State<MainPage> {
                         fontSize: 16.0,
                       ),
                     ),
-                    //const SizedBox(height: 10.0),
                     Text(
                       lastEditedNote,
                       textAlign: TextAlign.center,
@@ -685,25 +727,6 @@ class MainPageState extends State<MainPage> {
                         fontSize: 16.0,
                       ),
                     ),
-                    // SizedBox(
-                    //   height: 50.0,
-                    // ),
-                    // Text.rich(
-                    //   TextSpan(text: 'Total of notes:   ', children: <TextSpan>[
-                    //     TextSpan(text: totalOfNotes.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    //   ]),
-                    // ),
-                    // SizedBox(
-                    //   height: 50.0,
-                    // ),
-                    // Text.rich(
-                    //   TextSpan(text: 'Last edited note:   ', children: <TextSpan>[
-                    //     TextSpan(text: lastEditedNote, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    //   ]),
-                    // ),
-                    // const Spacer(flex: 1),
-                    // const Text('Click anywhere to create a new note'),
-                    // const Spacer(flex: 2),
                   ],
                 )),
               ),
@@ -732,8 +755,11 @@ class MainPageState extends State<MainPage> {
           onPressed: () async {
             String lastEditedNote = await getLastEditedNote();
             if (lastEditedNote.isNotEmpty) {
-              getFileContent(fileName: lastEditedNote);
-              switchVisiblePage(1);
+              await dbHelper.modifyNote(newNote['id'], newNote);
+              await _loadNotes();
+              print('conteudo da lista:\n\n');
+              print(_notes);
+              print('\n\n:conteudo da lista');
             }
           },
           heroTag: null,
@@ -764,7 +790,7 @@ class FileCard extends StatelessWidget {
   final String title;
   final String content;
 
-  FileCard({required this.title, required this.content});
+  const FileCard({super.key, required this.title, required this.content});
 
   @override
   Widget build(BuildContext context) {
@@ -800,5 +826,23 @@ class FileCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class Note {
+  final int id;
+  final String title;
+  final String content;
+  final String modificationDate;
+
+  const Note({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.modificationDate,
+  });
+
+  String toString() {
+    return '{id: $id, title: $title, content: $content, modificationDate: $modificationDate}';
   }
 }
