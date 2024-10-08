@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'models/notes.dart';
 
@@ -61,24 +59,6 @@ void showToast(String message) {
       fontSize: 14.0);
 }
 
-// Pega a última nota editada
-Future<String> getLastEditedNote() async {
-  final Directory directory = await getApplicationDocumentsDirectory();
-  final List<FileSystemEntity> entities = directory.listSync();
-
-  final List<File> files = entities.whereType<File>().toList();
-
-  files.sort((a, b) {
-    return b.statSync().modified.compareTo(a.statSync().modified);
-  });
-
-  if (files.isNotEmpty) {
-    return files[0].path.split('/').last;
-  } else {
-    return '';
-  }
-}
-
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -110,6 +90,9 @@ Note toNote(Map<String, dynamic> note) {
 
 // Classe Principal */
 class MainPageState extends State<MainPage> {
+  // Objeto manipulador do banco de daoos
+  final DatabaseHelper dbHelper = DatabaseHelper();
+
   // chave do scaffold
   static GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -122,34 +105,20 @@ class MainPageState extends State<MainPage> {
   final TextEditingController textController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
   final List<bool> visiblePage = [true, false]; // Controladora das páginas visíveis
-  String unchangedTitle = ''; // Controladora de alteracoes no título
-  String unchangedText = ''; // Controladora de alteracoes no texto
-
-  // database contents
-  DatabaseHelper dbHelper = DatabaseHelper();
+  String lastEditedNote = '';
 
   // armazenamento das notas
   List<Note> notes = [];
   Note? actualNote;
 
-  String lastEditedNote = '';
-  int totalOfNotes = 0;
-
-  // controladora de novas notas
-  bool isNewNote = false;
-
   @override
   void initState() {
     super.initState();
-    // _loadFiles();
     loadNotes();
   }
 
+  // Altera a página visível de acordo com o número passado
   void switchVisiblePage(int page) {
-    // Altera a página visível de acordo com o número passado
-
-    // saveLogic();
-
     setState(() {
       visiblePage[page] = true;
       if (page == 0) {
@@ -165,6 +134,7 @@ class MainPageState extends State<MainPage> {
     });
   }
 
+  // Cria uma nova nota
   void createNewNote() async {
     await saveLogic();
     actualNote = null;
@@ -173,6 +143,7 @@ class MainPageState extends State<MainPage> {
     textController.text = '';
   }
 
+  // Carrega as notas
   Future<void> loadNotes({String searchText = ''}) async {
     List<Map<String, dynamic>> dbNotes = await dbHelper.getNote();
     List<Note> tempNotes = [];
@@ -199,8 +170,7 @@ class MainPageState extends State<MainPage> {
     });
   }
 
-  // Funções de salvamento
-
+  // Lógica de salvamento
   Future<void> saveLogic() async {
     if (actualNote == null) {
       if ((titleController.text.isNotEmpty && titleController.text != defaultTitle) || textController.text.isNotEmpty) {
@@ -226,28 +196,29 @@ class MainPageState extends State<MainPage> {
     loadNotes();
   }
 
+  // Obtem o nome padrão
   String _getNewTitleName() {
     return defaultTitle;
   }
 
-  Future<void> getNoteContent({int noteId = 0}) async {
+  // Obtêm o conteúdo da nota passada
+  Future<void> getNoteContent(int noteId) async {
     await saveLogic();
-    if (noteId != 0) {
-      List<Map<String, dynamic>> data = await dbHelper.getNote(id: noteId);
-      actualNote = toNote(data[0]);
-    }
 
+    List<Map<String, dynamic>> data = await dbHelper.getNote(id: noteId);
+    actualNote = toNote(data[0]);
     titleController.text = actualNote!.title;
     textController.text = actualNote!.content;
   }
 
-  Future<bool?> deleteConfirmation(BuildContext context) {
+  // confirmação para deletar
+  Future<bool?> deleteConfirmation(BuildContext context, String noteName) {
     return showDialog<bool>(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Confirmation'),
-            content: const Text('Note Will be deleted!'),
+            title: const Text('You sure?'),
+            content: Text('Note $noteName will be deleted!'),
             actions: <Widget>[
               TextButton(
                   onPressed: () {
@@ -264,8 +235,11 @@ class MainPageState extends State<MainPage> {
         });
   }
 
-  Future<void> deleteLogic(int noteId) async {
-    bool? confirmation = await deleteConfirmation(context);
+  // Lógica para deletar
+  Future<void> deleteLogic(Note note) async {
+    int noteId = note.id;
+
+    bool? confirmation = await deleteConfirmation(context, note.title);
 
     if (confirmation!) {
       if (actualNote != null && noteId == actualNote!.id) {
@@ -275,8 +249,6 @@ class MainPageState extends State<MainPage> {
       loadNotes();
     }
   }
-
-  // Fim das funções de salvamento
 
   // Método build
   @override
@@ -388,7 +360,7 @@ class MainPageState extends State<MainPage> {
                             });
                           }
                           await saveLogic();
-                          await getNoteContent(noteId: note.id);
+                          await getNoteContent(note.id);
                           switchVisiblePage(1);
                         },
                         onLongPress: () async {
@@ -398,7 +370,7 @@ class MainPageState extends State<MainPage> {
                             });
                           }
                           await saveLogic();
-                          await deleteLogic(note.id);
+                          await deleteLogic(note);
                         },
                         child: FileCard(title: note.title, content: note.content),
                       );
@@ -543,7 +515,7 @@ class MainPageState extends State<MainPage> {
           onPressed: () async {
             await loadNotes();
             if (notes.isNotEmpty) {
-              await getNoteContent(noteId: notes.first.id);
+              await getNoteContent(notes.first.id);
               switchVisiblePage(1);
             } else {
               createNewNote();
