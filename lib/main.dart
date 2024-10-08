@@ -166,13 +166,10 @@ class MainPageState extends State<MainPage> {
   }
 
   void createNewNote() async {
-    // if (actualNote != null) {
-    //   saveLogic();
-    // }
     await saveLogic();
     actualNote = null;
     switchVisiblePage(1);
-    titleController.text = defaultTitle;
+    titleController.text = _getNewTitleName();
     textController.text = '';
   }
 
@@ -390,9 +387,6 @@ class MainPageState extends State<MainPage> {
                               scaffoldKey.currentState!.closeDrawer();
                             });
                           }
-                          // if (actualNote != null) {
-
-                          // }
                           await saveLogic();
                           await getNoteContent(noteId: note.id);
                           switchVisiblePage(1);
@@ -403,9 +397,6 @@ class MainPageState extends State<MainPage> {
                               scaffoldKey.currentState!.closeDrawer();
                             });
                           }
-                          // if (actualNote != null) {
-
-                          // }
                           await saveLogic();
                           await deleteLogic(note.id);
                         },
@@ -645,6 +636,7 @@ class Note {
     required this.modificationDate,
   });
 
+  @override
   String toString() {
     return '{id: $id, title: $title, content: $content, modificationDate: $modificationDate}';
   }
