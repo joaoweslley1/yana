@@ -33,15 +33,12 @@ class DatabaseHelper {
             title TEXT, 
             content TEXT,
             modification_date TEXT
-            )''');
+          )''');
   }
 
   // CREATE
   Future<int> insertNote(Map<String, dynamic> note) async {
     var dbClient = await db;
-    print('note:\n\n');
-    print(note);
-    print('\n\n:note');
     return await dbClient.insert('notes', note);
   }
 
@@ -69,7 +66,6 @@ class DatabaseHelper {
 
   // create
   void addNote(Map<String, dynamic> note) async {
-    print(note);
     await insertNote(note);
   }
 
@@ -80,16 +76,19 @@ class DatabaseHelper {
 
   // update
   Future<void> modifyNote(int id, Map<String, dynamic> note) async {
-    // print('ATUALIZANDO!');
-    // print(note);
-    // int noteId = await updateNote(id, note);
     await updateNote(id, note);
-    // print('Nota de id $noteId modificada.');
   }
 
   // delete
-  void removeNote(int id) async {
-    int noteId = await deleteNote(id);
-    print('Nota de id $noteId deletada.');
+  Future<void> removeNote(int id) async {
+    await deleteNote(id);
+  }
+
+  Future<int> getLastId() async {
+    final dbClient = await db;
+    final result = await dbClient.rawQuery('SELECT MAX(id) as lastId FROM notes');
+    final lastId = result.first['lastId'];
+
+    return lastId != null ? lastId as int : 0;
   }
 }
